@@ -1,0 +1,29 @@
+{
+  "name": "@scalable-chat/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "start": "node dist/main.js",
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@nestjs/common": "^12.0.0",
+    "@nestjs/core": "^12.0.0",
+    "@nestjs/platform-express": "^12.0.0",
+    "dotenv": "^16.4.7",
+    "pg": "^8.13.1",
+    "reflect-metadata": "^0.2.2",
+    "redis": "^5.0.1",
+    "rxjs": "^7.8.2",
+    "@nestjs/authentication": "^0.1.1",
+    "@nestjs/jwt": "^12.0.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.4",
+    "@types/pg": "^8.11.11",
+    "tsx": "^4.19.3",
+    "typescript": "^6.0.0"
+  }
+}
