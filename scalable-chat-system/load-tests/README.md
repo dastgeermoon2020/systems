@@ -54,7 +54,7 @@ LOADTEST_PASSWORD='DMChat-Seed-Only-2026!' \
 k6 run load-tests/scenarios/socketio-baseline.js
 ```
 
-The script uses `demo001@example.com`, `demo002@example.com`, and so on, assigning one account per virtual user. `SEED_USER_COUNT` is a safety check in the script; it does not create accounts. The test prints k6's metrics summary and fails its thresholds when authentication, WebSocket connection, room joining, or message acknowledgements fail. Messages are written to the database and remain there after the run; use a local development database and a dedicated seeded room.
+The script uses `demo001@example.com`, `demo002@example.com`, and so on, assigning one account per virtual user. `SEED_USER_COUNT` is a safety check in the script; it does not create accounts. The test prints k6's metrics summary and fails its thresholds when success rates fall below 99%, login HTTP p95 reaches 2 seconds, or message acknowledgement p95 reaches 250 milliseconds. These are initial local guardrails based on the repeated 100-VU baseline; adjust them when your target service levels are defined. A rare maximum-latency spike can still occur while p95 passes, so review both p95 and max values. Messages are written to the database and remain there after the run; use a local development database and a dedicated seeded room.
 
 For a private group test, select `ROOM_ID=seed-group-001` and keep `VUS` at or below the group's membership count. The `general` channel is available but may contain development messages.
 

@@ -188,6 +188,26 @@ Set `SEED_INCLUDE_GENERAL=true` only if you also want sample messages added to t
 
 For local development only, the Compose and sample environment files contain placeholder database credentials that match each other. Replace them and use managed secrets before deploying outside a local machine.
 
+### API and WebSocket integration tests
+
+The integration suite starts the real NestJS API on a temporary local port and exercises REST authentication, room permissions, direct/group conversations, message history and read state, presence, and authenticated Socket.IO delivery. It requires healthy PostgreSQL and Redis services.
+
+Create a separate test database once:
+
+```bash
+docker compose exec -T postgres psql -U chatadmin -d postgres -c "CREATE DATABASE chat_system_test;"
+```
+
+In `apps/api/.env`, set `TEST_DATABASE_URL` to that database using the same local username and password as `DATABASE_URL`. The test runner refuses URLs that do not point to localhost and a database name ending in `_test`. It applies migrations and clears only this dedicated test database before and after the run; it does not use the development `chat_system` database.
+
+Install API dependencies and run the suite from `apps/api`:
+
+```bash
+cd apps/api
+npm install
+npm run test:e2e
+```
+
 ### Optional: run the Grafana k6 Socket.IO baseline
 
 After seeding test data and starting the API, follow [the load-test guide](load-tests/README.md) to run a modest single-instance baseline with Grafana k6.
@@ -228,4 +248,4 @@ The sender identity is taken from the verified access token; clients must not su
 
 ## Development status
 
-This is an MVP, not a production deployment. Automated API tests, larger load-test scenarios and result tracking, Prometheus/Grafana dashboards, a Redis Socket.IO adapter for multi-instance broadcasts, email verification, password recovery, and production deployment configuration remain future work. The current Socket.IO gateway broadcasts within one API instance.
+This is an MVP, not a production deployment. Broader automated API test coverage, larger load-test scenarios and result tracking, Prometheus/Grafana dashboards, a Redis Socket.IO adapter for multi-instance broadcasts, email verification, password recovery, and production deployment configuration remain future work. The current Socket.IO gateway broadcasts within one API instance.

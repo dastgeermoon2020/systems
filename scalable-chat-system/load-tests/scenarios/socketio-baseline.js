@@ -43,6 +43,9 @@ export const options = {
     socket_connected: ['rate>0.99'],
     room_join_success: ['rate>0.99'],
     message_ack_success: ['rate>0.99'],
+    // Initial local guardrails based on the repeated 100-VU baseline runs.
+    http_req_duration: ['p(95)<2000'],
+    message_ack_latency: ['p(95)<250'],
   },
 };
 
