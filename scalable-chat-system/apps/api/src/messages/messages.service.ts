@@ -57,7 +57,7 @@ export class MessagesService {
     return { messages: result.rows };
   }
 
-  private async assertRoomAccess(roomId: string, userId: string) {
+  async assertRoomAccess(roomId: string, userId: string) {
     const result = await this.postgres.query<{ isPublic: boolean; isMember: boolean }>(
       `SELECT room.is_public AS "isPublic",
               EXISTS (SELECT 1 FROM room_members WHERE room_id = room.id AND user_id = $2) AS "isMember"
@@ -67,6 +67,14 @@ export class MessagesService {
     const room = result.rows[0];
     if (!room) throw new NotFoundException("Room not found");
     if (!room.isPublic && !room.isMember) throw new ForbiddenException("You are not a member of this room");
+  }
+
+  async roomMemberIds(roomId: string): Promise<string[]> {
+    const result = await this.postgres.query<{ userId: string }>(
+      "SELECT user_id AS \"userId\" FROM room_members WHERE room_id = $1",
+      [roomId],
+    );
+    return result.rows.map((row) => row.userId);
   }
 
   private requiredText(value: unknown, field: string, maxLength: number): string {

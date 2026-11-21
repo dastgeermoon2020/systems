@@ -14,6 +14,7 @@ A full-stack chat application under active development. The current MVP supports
 - Authenticated API requests use `Authorization: Bearer <token>`.
 - The web app keeps the token in the current browser tab's `sessionStorage` and clears it on sign-out.
 - The interface supports dark and light themes, starts in dark mode, and remembers the selected theme in the browser.
+- A repeatable local seeder creates demo accounts, channels, groups, direct chats, and messages without deleting or overwriting existing rows.
 
 There is no email verification, password reset, refresh-token flow, or server-side token revocation yet. Users sign in again after their access token expires.
 
@@ -34,7 +35,8 @@ Dynamic public channel creation, adding or removing members after a group is cre
 - Load the most recent messages in a room. The API defaults to 50 messages and accepts a limit from 1 to 100.
 - Show per-room unread message counts. Opening a conversation marks its current messages as read; unread counts refresh with the conversation list.
 - Message content is limited to 4,000 characters.
-- The web app refreshes messages every 3 seconds and the conversation list every 10 seconds. This is polling; WebSocket-based live updates are not implemented yet.
+- Deliver new messages over an authenticated Socket.IO connection. Messages are saved to PostgreSQL before the server broadcasts them to the room.
+- Keep REST history and sending as a fallback when a live socket is disconnected. The web app polls messages every 3 seconds only while disconnected; the conversation list refreshes every 10 seconds.
 
 ### Health and service connections
 
@@ -52,6 +54,7 @@ Dynamic public channel creation, adding or removing members after a group is cre
 | Authentication       | JWT access tokens and NestJS password hashing |
 | Database             | PostgreSQL 17                                 |
 | Redis                | Redis 7; currently used for readiness checks  |
+| Real-time messaging  | Socket.IO over the NestJS WebSocket gateway   |
 | Local infrastructure | Docker Compose                                |
 
 ## Project structure
@@ -61,7 +64,8 @@ apps/
   api/
     migrations/       SQL migrations for messages, users, rooms, and membership
     src/auth/         Registration, login, JWT guard
-    src/messages/     Message endpoints and room access checks
+    src/messages/     REST endpoints, Socket.IO gateway, and room access checks
+    src/scripts/      Repeatable local development data seeder
     src/rooms/        Room, group, direct-message, and user-directory endpoints
   web/
     app/              Next.js chat interface
@@ -73,11 +77,11 @@ infrastructure/
   prometheus/         Prometheus configuration placeholder
   grafana/provisioning/
 load-tests/
-  scenarios/          Load-test scenario area
+  scenarios/          Grafana k6 Socket.IO workload
   results/            Load-test result area
 ```
 
-The architecture/benchmark, monitoring, and load-test directories are scaffolding; monitoring configuration, seeded test data, and load-test scenarios have not been implemented yet.
+The architecture/benchmark and monitoring directories are scaffolding. A modest Grafana k6 Socket.IO baseline is available; larger load-test scenarios and result tracking remain future work.
 
 ## Requirements
 
@@ -159,7 +163,34 @@ npm run dev
 
 Open [http://localhost:3001](http://localhost:3001), then register or sign in. To try direct messages or groups, create a second account with a different email address in another browser session.
 
+### Optional: seed local development data
+
+Run this from `apps/api` after migrations have been applied and the local `.env` is configured:
+
+```bash
+npm run seed:local
+```
+
+The default seed creates 12 demo accounts, 2 public channels, 3 private groups, 3 direct conversations, and 100 messages in each of those 8 seeded rooms. It leaves the existing `general` room and its messages alone. It is safe to re-run: stable IDs prevent duplicate demo rows, and it does not delete or overwrite existing users, rooms, or messages. The first demo login is `demo001@example.com` with password `DMChat-Seed-Only-2026!`; use this only with a local development database.
+
+For a larger local dataset, adjust the counts before the command:
+
+```bash
+SEED_USER_COUNT=50 \
+SEED_CHANNEL_COUNT=10 \
+SEED_GROUP_COUNT=10 \
+SEED_DIRECT_COUNT=25 \
+SEED_MESSAGES_PER_ROOM=1000 \
+npm run seed:local
+```
+
+Set `SEED_INCLUDE_GENERAL=true` only if you also want sample messages added to the existing `#general` channel.
+
 For local development only, the Compose and sample environment files contain placeholder database credentials that match each other. Replace them and use managed secrets before deploying outside a local machine.
+
+### Optional: run the Grafana k6 Socket.IO baseline
+
+After seeding test data and starting the API, follow [the load-test guide](load-tests/README.md) to run a modest single-instance baseline with Grafana k6.
 
 ## API reference
 
@@ -180,6 +211,10 @@ Except for health checks and account registration/login, endpoints require a JWT
 | `GET`  | `/messages?roomId=general&limit=50` | List recent messages in a room                              | Bearer token and room access |
 | `POST` | `/messages`                         | Send a message; body: `roomId`, `content`                   | Bearer token and room access |
 
+### Socket.IO events
+
+Connect to the API URL with the access token in the Socket.IO handshake: `{ auth: { token } }`. Available client events are `room:join` with `{ roomId }`, `room:leave` with `{ roomId }`, and `message:send` with `{ roomId, content }`. The server acknowledges each request. New messages arrive as `message:new`; members of private rooms receive `room:updated` notifications so their unread counts can refresh.
+
 Example message body:
 
 ```json
@@ -193,4 +228,4 @@ The sender identity is taken from the verified access token; clients must not su
 
 ## Development status
 
-This is an MVP, not a production deployment. Automated API tests, data seeding, load testing, Prometheus/Grafana dashboards, WebSockets, email verification, password recovery, and production deployment configuration remain future work.
+This is an MVP, not a production deployment. Automated API tests, larger load-test scenarios and result tracking, Prometheus/Grafana dashboards, a Redis Socket.IO adapter for multi-instance broadcasts, email verification, password recovery, and production deployment configuration remain future work. The current Socket.IO gateway broadcasts within one API instance.
